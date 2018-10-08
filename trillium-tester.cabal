@@ -8,12 +8,17 @@ cabal-version:       >=1.10
 executable trillium-tester
   hs-source-dirs:      src
   main-is:             Main.hs
+  other-modules:       STLink.Driver
+                     , STLink.Detection
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , usb
                      , vector
                      , boxes
                      , text
+                     , bytestring
+                     , binary
   default-extensions:  TupleSections
                      , OverloadedStrings
                      , LambdaCase
+  ghc-options:         -Wall -O3 -threaded

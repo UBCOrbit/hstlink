@@ -1,8 +1,9 @@
-module Detect
+module STLink.Detection
   ( pickBoard
   ) where
 
 import System.USB
+import System.IO
 
 import qualified Data.Vector as V
 import Data.Word
@@ -70,5 +71,6 @@ pickBoard = do
          Just (fst . V.head $ micros)
     _ -> do
       putStr "Select board: "
+      hFlush stdout
       num <- read <$> getLine
       pure $ fst <$> V.indexM micros (num - 1)

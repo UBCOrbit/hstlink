@@ -1,5 +1,3 @@
 module Main where
 
-main :: IO ()
-main = do
-  pure ()
+main = pure ()
