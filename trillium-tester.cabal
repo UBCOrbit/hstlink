@@ -18,6 +18,7 @@ executable trillium-tester
                      , text
                      , bytestring
                      , binary
+                     , mtl
   default-extensions:  TupleSections
                      , OverloadedStrings
                      , LambdaCase
