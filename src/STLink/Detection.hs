@@ -65,12 +65,12 @@ pickBoard = do
   micros <- findStMicros
   printBoards (V.toList micros)
   case length micros of
-    0 -> putStrLn "No boards detected!" $>
+    0 -> putStrLn "no boards detected!" $>
          Nothing
-    1 -> putStrLn "Auto-selecting board 1." $>
+    1 -> putStrLn "auto-selecting board 1" $>
          Just (fst . V.head $ micros)
     _ -> do
-      putStr "Select board: "
+      putStr "select board: "
       hFlush stdout
       num <- read <$> getLine
       pure $ fst <$> V.indexM micros (num - 1)

@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module STLink.Driver
   ( 
   ) where
@@ -100,12 +98,35 @@ instance Binary ResponseVersion where
 
 type VersionCommand = InCommand CommandVersion ResponseVersion
 
--- withBoard :: ExceptT String IO a
--- withBoard = pickBoard >>=
-  -- maybe (pure ()) claimBoard
+newtype STLink a =
+  STLink { runSTLink :: DeviceHandle -> ExceptT String IO a
+         }
 
--- claimBoard :: Device -> IO ()
--- claimBoard d = withDeviceHandle d $ \h -> do
---   withDetachedKernelDriver h 0 $ do
---     withClaimedInterface h 0 $ do
---       getVersion h >>= print
+instance Functor STLink where
+  fmap f (STLink m) = STLink $ fmap f . m
+
+instance Applicative STLink where
+  pure x = STLink $ const (pure x)
+  (STLink f) <*> (STLink m) =
+    STLink $ \h -> f h <*> m h
+
+instance Monad STLink where
+  (STLink m) >>= f =
+    STLink $ \h -> (m h >>= ($ h) . runSTLink . f)
+
+getVersion :: STLink ResponseVersion
+getVersion = STLink $ \h -> inCommand h (InCommand CommandVersion 6)
+
+withAutoBoard :: STLink a -> IO (Maybe a)
+withAutoBoard s = pickBoard >>=
+  maybe (pure Nothing) (\d -> withBoard d s)
+
+withBoard :: Device -> STLink a -> IO (Maybe a)
+withBoard d s = withDeviceHandle d $ \h ->
+  withDetachedKernelDriver h 0 $
+    withClaimedInterface h 0 $
+      runExceptT (runSTLink s h) >>= \case
+        Left e -> do
+          putStrLn $ "stlink driver error: " ++ e
+          pure Nothing
+        Right a -> pure $ Just a

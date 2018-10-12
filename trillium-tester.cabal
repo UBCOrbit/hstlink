@@ -22,4 +22,5 @@ executable trillium-tester
   default-extensions:  TupleSections
                      , OverloadedStrings
                      , LambdaCase
+                     , FlexibleContexts
   ghc-options:         -Wall -O3 -threaded
