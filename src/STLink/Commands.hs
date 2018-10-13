@@ -187,22 +187,3 @@ instance InCommand CommandModeEnter where
 -- modes.
 enterMode :: DebugMode -> STLink ()
 enterMode = runInCommand . CommandModeEnter
-
-data CommandModeLeave =
-  CommandModeLeave DebugMode
-  deriving (Show, Eq)
-
-instance InCommand CommandModeLeave where
-  type InResponse CommandModeLeave = ()
-  inCommandEncoding (CommandModeLeave m)
-    = case m of
-        DebugJTAG -> putDebug $ putWord8 0x21
-        DebugSWD -> putDebug $ putWord8 0x21
-        DebugSWIM -> putSWIM $ putWord8 0x01
-  inResponseSize = 0
-  inResponseEncoding = pure ()
-
--- | Exit a debug mode and return to the default state, either DFU or
--- Mass mode.
-leaveMode :: DebugMode -> STLink ()
-leaveMode = runInCommand . CommandModeLeave
