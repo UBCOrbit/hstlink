@@ -8,10 +8,10 @@ All the raw commands that an STLink dongle understands can be found
 here, though high-level wrappers for them are elsewhere.
 -}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE LambdaCase          #-}
 
 module STLink.Commands
   ( getVersion
@@ -79,6 +79,24 @@ class InCommand c where
         (BL.toStrict . runPut . inCommandEncoding $ c)
         (inResponseSize @c)
 
+-- | This typeclass handles "outward"-bound STLink commands, by
+-- associating the command's encoding with the operand's encoding.
+class OutCommand c where
+  -- | The associated operannd type for this command.
+  type OutData c :: *
+  -- | The binary (put) encoding for the command.
+  outCommandEncoding :: c -> Put
+  -- | The binary (put) encoding for the operand.
+  outDataEncoding :: OutData c -> Put
+  -- | Encode the command and operand, and issue the command.
+  runOutCommand :: c -> OutData c -> STLink ()
+  runOutCommand c d =
+    STLink $ \h ->
+      outCommand
+        h
+        (BL.toStrict . runPut . outCommandEncoding $ c)
+        (BL.toStrict . runPut . outDataEncoding @c $ d)
+
 data CommandVersion =
   CommandVersion
   deriving (Show, Eq)
@@ -127,13 +145,14 @@ instance InCommand CommandGetMode where
   type InResponse CommandGetMode = STLinkMode
   inCommandEncoding _ = putWord8 0xf5
   inResponseSize = 2
-  inResponseEncoding = getWord8 >>= \case
-    0x0 -> pure ModeDFU
-    0x1 -> pure ModeMass
-    0x2 -> pure ModeDebug
-    0x3 -> pure ModeSWIM
-    0x4 -> pure ModeBootloader
-    _ -> empty
+  inResponseEncoding =
+    getWord8 >>= \case
+      0x0 -> pure ModeDFU
+      0x1 -> pure ModeMass
+      0x2 -> pure ModeDebug
+      0x3 -> pure ModeSWIM
+      0x4 -> pure ModeBootloader
+      _ -> empty
 
 -- | Figure out what major mode the STLink dongle is operating in.
 -- (Debug or otherwise.)
@@ -163,7 +182,6 @@ getCurrentVoltage = runInCommand CommandGetVoltage
 putDebug :: Put -> Put
 putDebug = (putWord8 0xf2 *>)
 
-
 -- | Tell the STLink dongle that the following command is a SWIM
 -- command.  (Unused)
 putSWIM :: Put -> Put
@@ -183,11 +201,11 @@ data DebugMode
 
 instance InCommand CommandModeEnter where
   type InResponse CommandModeEnter = ()
-  inCommandEncoding (CommandModeEnter m)
-    = case m of
-        DebugJTAG -> putDebug $ putWord16be 0x3000
-        DebugSWD -> putDebug $ putWord16be 0x30a3
-        DebugSWIM -> putSWIM $ putWord8 0x00
+  inCommandEncoding (CommandModeEnter m) =
+    case m of
+      DebugJTAG -> putDebug $ putWord16be 0x3000
+      DebugSWD  -> putDebug $ putWord16be 0x30a3
+      DebugSWIM -> putSWIM $ putWord8 0x00
   inResponseSize = 2
   inResponseEncoding = pure ()
 
@@ -209,13 +227,13 @@ data DebugStatus
 
 instance InCommand CommandGetStatus where
   type InResponse CommandGetStatus = DebugStatus
-  inCommandEncoding CommandGetStatus =
-    putDebug $ putWord8 0x01
+  inCommandEncoding CommandGetStatus = putDebug $ putWord8 0x01
   inResponseSize = 2
-  inResponseEncoding = getWord8 >>= \case
-    0x80 -> pure DebugStatusRunning
-    0x81 -> pure DebugStatusHalted
-    _ -> empty
+  inResponseEncoding =
+    getWord8 >>= \case
+      0x80 -> pure DebugStatusRunning
+      0x81 -> pure DebugStatusHalted
+      _ -> empty
 
 -- | Get the current state of the CPU.  You must be in SWD or JTAG
 -- mode to issue this command.
@@ -234,10 +252,10 @@ instance InCommand CommandExecution where
   type InResponse CommandExecution = ()
   inCommandEncoding s =
     case s of
-      ExecuteRun -> putDebug $ putWord8 0x09
-      ExecuteHalt -> putDebug $ putWord8 0x02
+      ExecuteRun   -> putDebug $ putWord8 0x09
+      ExecuteHalt  -> putDebug $ putWord8 0x02
       ExecuteReset -> putWord8 0x32
-      ExecuteStep -> putDebug $ putWord8 0x0a
+      ExecuteStep  -> putDebug $ putWord8 0x0a
   inResponseSize = 2
   inResponseEncoding = pure ()
 
