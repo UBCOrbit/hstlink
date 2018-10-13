@@ -23,6 +23,10 @@ module STLink.Commands
   , DebugMode(..)
   , getStatus
   , DebugStatus
+  , haltCore
+  , runCore
+  , stepCore
+  , resetCore
   ) where
 
 import           Data.Binary.Get
@@ -218,3 +222,37 @@ instance InCommand CommandGetStatus where
 getStatus :: STLink DebugStatus
 getStatus = runInCommand CommandGetStatus
 
+-- | How to alter the execution of the micro.
+data CommandExecution
+  = ExecuteRun
+  | ExecuteHalt
+  | ExecuteReset
+  | ExecuteStep
+  deriving (Eq, Show)
+
+instance InCommand CommandExecution where
+  type InResponse CommandExecution = ()
+  inCommandEncoding s =
+    case s of
+      ExecuteRun -> putDebug $ putWord8 0x09
+      ExecuteHalt -> putDebug $ putWord8 0x02
+      ExecuteReset -> putWord8 0x32
+      ExecuteStep -> putDebug $ putWord8 0x0a
+  inResponseSize = 2
+  inResponseEncoding = pure ()
+
+-- | Stop execution on the microcontroller.
+haltCore :: STLink ()
+haltCore = runInCommand ExecuteHalt
+
+-- | Continue execution on the microcontroller.
+runCore :: STLink ()
+runCore = runInCommand ExecuteRun
+
+-- | Reset the microcontroller.
+resetCore :: STLink ()
+resetCore = runInCommand ExecuteReset
+
+-- | Step one instruction on the microcontroller.
+stepCore :: STLink ()
+stepCore = runInCommand ExecuteStep
