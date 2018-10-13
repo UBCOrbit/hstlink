@@ -19,6 +19,8 @@ module STLink.Commands
   , getCurrentMode
   , STLinkMode(..)
   , getCurrentVoltage
+  , DebugMode(..)
+  , enterMode
   ) where
 
 import           Data.Binary.Get
@@ -27,6 +29,7 @@ import           Data.Bits
 import qualified Data.ByteString.Lazy as BL
 
 import           Control.Applicative
+import           Control.Monad.IO.Class
 
 import           STLink.Driver
 
@@ -147,3 +150,59 @@ instance InCommand CommandGetVoltage where
 getCurrentVoltage :: STLink Float
 getCurrentVoltage = runInCommand CommandGetVoltage
 
+-- | Tell the STLink dongle that the following command is a debug
+-- command.
+putDebug :: Put -> Put
+putDebug = (putWord8 0xf2 *>)
+
+
+-- | Tell the STLink dongle that the following command is a SWIM
+-- command.  (Unused)
+putSWIM :: Put -> Put
+putSWIM = (putWord8 0xf2 *>)
+
+data CommandModeEnter =
+  CommandModeEnter DebugMode
+  deriving (Show, Eq)
+
+-- | Which debugging interface the dongle with interface with.  Prefer
+-- SWD when possible.
+data DebugMode
+  = DebugJTAG
+  | DebugSWD
+  | DebugSWIM
+  deriving (Show, Eq)
+
+instance InCommand CommandModeEnter where
+  type InResponse CommandModeEnter = ()
+  inCommandEncoding (CommandModeEnter m)
+    = case m of
+        DebugJTAG -> putDebug $ putWord16be 0x3000
+        DebugSWD -> putDebug $ putWord16be 0x30a3
+        DebugSWIM -> putSWIM $ putWord8 0x00
+  inResponseSize = 2
+  inResponseEncoding = pure ()
+
+-- | Leave either DFU or Mass mode and enter one of the three debug
+-- modes.
+enterMode :: DebugMode -> STLink ()
+enterMode = runInCommand . CommandModeEnter
+
+data CommandModeLeave =
+  CommandModeLeave DebugMode
+  deriving (Show, Eq)
+
+instance InCommand CommandModeLeave where
+  type InResponse CommandModeLeave = ()
+  inCommandEncoding (CommandModeLeave m)
+    = case m of
+        DebugJTAG -> putDebug $ putWord8 0x21
+        DebugSWD -> putDebug $ putWord8 0x21
+        DebugSWIM -> putSWIM $ putWord8 0x01
+  inResponseSize = 0
+  inResponseEncoding = pure ()
+
+-- | Exit a debug mode and return to the default state, either DFU or
+-- Mass mode.
+leaveMode :: DebugMode -> STLink ()
+leaveMode = runInCommand . CommandModeLeave
