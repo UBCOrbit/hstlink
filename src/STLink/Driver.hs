@@ -14,6 +14,7 @@ module STLink.Driver
   , outCommand
   , withAutoBoard
   , withBoard
+  , STLink(STLink)
   ) where
 
 import           Control.Monad.Except
@@ -90,6 +91,9 @@ instance Applicative STLink where
 
 instance Monad STLink where
   (STLink m) >>= f = STLink $ \h -> m h >>= ($ h) . runSTLink . f
+
+instance MonadIO STLink where
+  liftIO m = STLink $ const (liftIO m)
 
 -- | Automatically finds a board (and prompts the user to select one
 -- if several are attached) and then runs the 'STLink' action with
