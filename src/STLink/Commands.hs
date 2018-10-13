@@ -19,8 +19,10 @@ module STLink.Commands
   , getCurrentMode
   , STLinkMode(..)
   , getCurrentVoltage
-  , DebugMode(..)
   , enterMode
+  , DebugMode(..)
+  , getStatus
+  , DebugStatus
   ) where
 
 import           Data.Binary.Get
@@ -29,7 +31,6 @@ import           Data.Bits
 import qualified Data.ByteString.Lazy as BL
 
 import           Control.Applicative
-import           Control.Monad.IO.Class
 
 import           STLink.Driver
 
@@ -187,3 +188,30 @@ instance InCommand CommandModeEnter where
 -- modes.
 enterMode :: DebugMode -> STLink ()
 enterMode = runInCommand . CommandModeEnter
+
+data CommandGetStatus =
+  CommandGetStatus
+  deriving (Show, Eq)
+
+-- | Determines if the CPU is running or halted (through debug
+-- commands).
+data DebugStatus
+  = DebugStatusRunning
+  | DebugStatusHalted
+  deriving (Show, Eq)
+
+instance InCommand CommandGetStatus where
+  type InResponse CommandGetStatus = DebugStatus
+  inCommandEncoding CommandGetStatus =
+    putDebug $ putWord8 0x01
+  inResponseSize = 2
+  inResponseEncoding = getWord8 >>= \case
+    0x80 -> pure DebugStatusRunning
+    0x81 -> pure DebugStatusHalted
+    _ -> empty
+
+-- | Get the current state of the CPU.  You must be in SWD or JTAG
+-- mode to issue this command.
+getStatus :: STLink DebugStatus
+getStatus = runInCommand CommandGetStatus
+
