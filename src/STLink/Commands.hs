@@ -110,6 +110,7 @@ data CommandGetMode =
   CommandGetMode
   deriving (Show, Eq)
 
+-- | Major mode for STLink, rather than the minor debug mode ('DebugMode').
 data STLinkMode
   = ModeDFU
   | ModeMass
@@ -130,6 +131,8 @@ instance InCommand CommandGetMode where
     0x4 -> pure ModeBootloader
     _ -> empty
 
+-- | Figure out what major mode the STLink dongle is operating in.
+-- (Debug or otherwise.)
 getCurrentMode :: STLink STLinkMode
 getCurrentMode = runInCommand CommandGetMode
 
