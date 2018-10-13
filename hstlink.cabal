@@ -7,7 +7,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     STLink.Driver
+  exposed-modules:     STLink
+                     , STLink.Driver
                      , STLink.Detection
                      , STLink.Commands
   default-language:    Haskell2010

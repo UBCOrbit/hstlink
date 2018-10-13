@@ -11,16 +11,22 @@ here, though high-level wrappers for them are elsewhere.
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE LambdaCase          #-}
 
 module STLink.Commands
   ( getVersion
   , ResponseVersion(..)
+  , getCurrentMode
+  , STLinkMode(..)
+  , getCurrentVoltage
   ) where
 
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Bits
 import qualified Data.ByteString.Lazy as BL
+
+import           Control.Applicative
 
 import           STLink.Driver
 
@@ -59,7 +65,7 @@ class InCommand c where
   runInCommand :: c -> STLink (InResponse c)
   runInCommand c =
     STLink $ \h ->
-      fmap (runGet (inResponseEncoding @c) . BL.fromStrict) $
+      runGet (inResponseEncoding @c) . BL.fromStrict <$>
       inCommand
         h
         (BL.toStrict . runPut . inCommandEncoding $ c)
@@ -69,7 +75,7 @@ data CommandVersion =
   CommandVersion
   deriving (Show, Eq)
 
--- | The STLink version reported by the dongle.  THe response also
+-- | The STLink version reported by the dongle.  The response also
 -- contians the VID and PID of the USB interface, but this is ignored
 -- since it is redundant.
 data ResponseVersion = ResponseVersion
@@ -95,3 +101,49 @@ instance InCommand CommandVersion where
 -- | Get the version of an STLink dongle.
 getVersion :: STLink ResponseVersion
 getVersion = runInCommand CommandVersion
+
+data CommandGetMode =
+  CommandGetMode
+  deriving (Show, Eq)
+
+data STLinkMode
+  = ModeDFU
+  | ModeMass
+  | ModeDebug
+  | ModeSWIM
+  | ModeBootloader
+  deriving (Show, Eq)
+
+instance InCommand CommandGetMode where
+  type InResponse CommandGetMode = STLinkMode
+  inCommandEncoding _ = putWord8 0xf5
+  inResponseSize = 2
+  inResponseEncoding = getWord8 >>= \case
+    0x0 -> pure ModeDFU
+    0x1 -> pure ModeMass
+    0x2 -> pure ModeDebug
+    0x3 -> pure ModeSWIM
+    0x4 -> pure ModeBootloader
+    _ -> empty
+
+getCurrentMode :: STLink STLinkMode
+getCurrentMode = runInCommand CommandGetMode
+
+data CommandGetVoltage =
+  CommandGetVoltage
+  deriving (Show, Eq)
+
+instance InCommand CommandGetVoltage where
+  type InResponse CommandGetVoltage = Float
+  inCommandEncoding _ = putWord8 0xf7
+  inResponseSize = 8
+  inResponseEncoding = do
+    divisor <- fromIntegral <$> getInt32le
+    coef <- fromIntegral <$> getInt32le
+    pure $ 2 * coef * (1.2 / divisor)
+
+-- | Get the voltage on the output of the STLink regulator.  (Should
+-- be ~3.3V).
+getCurrentVoltage :: STLink Float
+getCurrentVoltage = runInCommand CommandGetVoltage
+
