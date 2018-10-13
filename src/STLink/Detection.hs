@@ -8,7 +8,6 @@ This module can detect attached STLink dongles, and has some fnuctions
 for pretty-printing a table of detected devices, as well as prompting
 the user to select one if more than one is found.
 -}
-
 {-# LANGUAGE TupleSections #-}
 
 module STLink.Detection
