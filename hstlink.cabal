@@ -1,15 +1,15 @@
-name:                trillium-tester
+name:                hstlink
 version:             0.1.0.0
 author:              UBC Orbit CDH
 copyright:           2018 UBC Orbit
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable trillium-tester
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
-  other-modules:       STLink.Driver
+  exposed-modules:     STLink.Driver
                      , STLink.Detection
+                     , STLink.Commands
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , usb
@@ -19,8 +19,6 @@ executable trillium-tester
                      , bytestring
                      , binary
                      , mtl
-  default-extensions:  TupleSections
-                     , OverloadedStrings
-                     , LambdaCase
-                     , FlexibleContexts
-  ghc-options:         -Wall -O3 -threaded
+  default-extensions: OverloadedStrings
+                    , FlexibleContexts
+  ghc-options:         -Wall -O3
