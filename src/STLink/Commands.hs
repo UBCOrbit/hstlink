@@ -327,6 +327,8 @@ instance InCommand CommandReadMem where
   inResponseEncoding (CommandReadMem _ l) = getByteString (fromIntegral l)
 
 -- | Peeks 'l' bytes of memory at address 'a'.
+--
+-- A maximum of 64 bytes can be read in one command.
 readMem :: Word32 -> Word16 -> STLink BS.ByteString
 readMem a l = runInCommand (CommandReadMem a l)
 
@@ -344,6 +346,8 @@ instance OutCommand CommandWriteMem where
 
 -- | Writes a 'BS.ByteString' into the location in memory specified by
 -- 'a'.
+--
+-- A maximum of 64 bytes can be written in one command.
 writeMem :: Word32 -> BS.ByteString -> STLink ()
 writeMem a d = runOutCommand
   (CommandWriteMem a (fromIntegral $ BS.length d)) d
