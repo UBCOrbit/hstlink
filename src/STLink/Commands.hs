@@ -27,11 +27,17 @@ module STLink.Commands
   , runCore
   , stepCore
   , resetCore
+  , readReg
+  , writeReg
+  , readMem
+  , writeMem
   ) where
 
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Bits
+import           Data.Word
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 import           Control.Applicative
@@ -64,20 +70,20 @@ class InCommand c where
   -- | The binary (put) encoding for the command.
   inCommandEncoding :: c -> Put
   -- | The expected size of the response to this command.
-  inResponseSize :: Int
+  inResponseSize :: c -> Int
   -- | The binary (get) encoding for the response.
-  inResponseEncoding :: Get (InResponse c)
+  inResponseEncoding :: c -> Get (InResponse c)
   -- | A reasonable default implementation of issuing an "inward"
   -- command.  It's unlikely instances of this class will have to
   -- provide an implementation of this.
   runInCommand :: c -> STLink (InResponse c)
   runInCommand c =
     STLink $ \h ->
-      runGet (inResponseEncoding @c) . BL.fromStrict <$>
+      runGet (inResponseEncoding c) . BL.fromStrict <$>
       inCommand
         h
         (BL.toStrict . runPut . inCommandEncoding $ c)
-        (inResponseSize @c)
+        (inResponseSize c)
 
 -- | This typeclass handles "outward"-bound STLink commands, by
 -- associating the command's encoding with the operand's encoding.
@@ -115,8 +121,8 @@ data ResponseVersion = ResponseVersion
 instance InCommand CommandVersion where
   type InResponse CommandVersion = ResponseVersion
   inCommandEncoding _ = putWord8 0xf1
-  inResponseSize = 6
-  inResponseEncoding = do
+  inResponseSize _ = 6
+  inResponseEncoding _ = do
     n <- getWord16le
     pure $
       ResponseVersion
@@ -144,8 +150,8 @@ data STLinkMode
 instance InCommand CommandGetMode where
   type InResponse CommandGetMode = STLinkMode
   inCommandEncoding _ = putWord8 0xf5
-  inResponseSize = 2
-  inResponseEncoding =
+  inResponseSize _ = 2
+  inResponseEncoding _ =
     getWord8 >>= \case
       0x0 -> pure ModeDFU
       0x1 -> pure ModeMass
@@ -166,8 +172,8 @@ data CommandGetVoltage =
 instance InCommand CommandGetVoltage where
   type InResponse CommandGetVoltage = Float
   inCommandEncoding _ = putWord8 0xf7
-  inResponseSize = 8
-  inResponseEncoding = do
+  inResponseSize _ = 8
+  inResponseEncoding _ = do
     divisor <- fromIntegral <$> getInt32le
     coef <- fromIntegral <$> getInt32le
     pure $ 2 * coef * (1.2 / divisor)
@@ -206,8 +212,8 @@ instance InCommand CommandModeEnter where
       DebugJTAG -> putDebug $ putWord16be 0x3000
       DebugSWD  -> putDebug $ putWord16be 0x30a3
       DebugSWIM -> putSWIM $ putWord8 0x00
-  inResponseSize = 2
-  inResponseEncoding = pure ()
+  inResponseSize _ = 2
+  inResponseEncoding _ = pure ()
 
 -- | Leave either DFU or Mass mode and enter one of the three debug
 -- modes.
@@ -228,8 +234,8 @@ data DebugStatus
 instance InCommand CommandGetStatus where
   type InResponse CommandGetStatus = DebugStatus
   inCommandEncoding CommandGetStatus = putDebug $ putWord8 0x01
-  inResponseSize = 2
-  inResponseEncoding =
+  inResponseSize _ = 2
+  inResponseEncoding _ =
     getWord8 >>= \case
       0x80 -> pure DebugStatusRunning
       0x81 -> pure DebugStatusHalted
@@ -256,8 +262,8 @@ instance InCommand CommandExecution where
       ExecuteHalt  -> putDebug $ putWord8 0x02
       ExecuteReset -> putWord8 0x32
       ExecuteStep  -> putDebug $ putWord8 0x0a
-  inResponseSize = 2
-  inResponseEncoding = pure ()
+  inResponseSize _ = 2
+  inResponseEncoding _ = pure ()
 
 -- | Stop execution on the microcontroller.
 haltCore :: STLink ()
@@ -274,3 +280,70 @@ resetCore = runInCommand ExecuteReset
 -- | Step one instruction on the microcontroller.
 stepCore :: STLink ()
 stepCore = runInCommand ExecuteStep
+
+type Reg = Word8
+
+data CommandReadReg =
+  CommandReadReg Reg
+  deriving (Eq, Show)
+
+instance InCommand CommandReadReg where
+  type InResponse CommandReadReg = Word32
+  inCommandEncoding (CommandReadReg n) =
+    putDebug $ putWord8 0x33 *> putWord8 n
+  inResponseSize _ = 8
+  inResponseEncoding _ = getWord32le *> getWord32le
+  
+-- | Read the specified real register. (Debug registers are not
+-- accessible through this command).
+readReg :: Reg -> STLink Word32
+readReg = runInCommand . CommandReadReg
+
+data CommandWriteReg =
+  CommandWriteReg Reg Word32
+
+instance InCommand CommandWriteReg where
+  type InResponse CommandWriteReg = ()
+  inCommandEncoding (CommandWriteReg n v) =
+    putDebug $ putWord8 0x34 *> putWord8 n *> putWord32le v
+  inResponseSize _ = 2
+  inResponseEncoding _ = pure ()
+
+-- | Write a 'Word32' to the specified 'Reg'.
+writeReg :: Reg -> Word32 -> STLink ()
+writeReg n v = runInCommand $ CommandWriteReg n v
+
+data CommandReadMem =
+  CommandReadMem Word32 Word16
+  deriving (Eq, Show)
+
+instance InCommand CommandReadMem where
+  type InResponse CommandReadMem = BS.ByteString
+  inCommandEncoding (CommandReadMem a l) = putDebug $ do
+    putWord8 0x0c
+    putWord32le a
+    putWord16le l
+  inResponseSize (CommandReadMem _ l) = fromIntegral l
+  inResponseEncoding (CommandReadMem _ l) = getByteString (fromIntegral l)
+
+-- | Peeks 'l' bytes of memory at address 'a'.
+readMem :: Word32 -> Word16 -> STLink BS.ByteString
+readMem a l = runInCommand (CommandReadMem a l)
+
+data CommandWriteMem =
+  CommandWriteMem Word32 Word16
+  deriving (Eq, Show)
+
+instance OutCommand CommandWriteMem where
+  type OutData CommandWriteMem = BS.ByteString
+  outCommandEncoding (CommandWriteMem a l) = putDebug $ do
+    putWord8 0x0d
+    putWord32le a
+    putWord16le l
+  outDataEncoding = putByteString
+
+-- | Writes a 'BS.ByteString' into the location in memory specified by
+-- 'a'.
+writeMem :: Word32 -> BS.ByteString -> STLink ()
+writeMem a d = runOutCommand
+  (CommandWriteMem a (fromIntegral $ BS.length d)) d
