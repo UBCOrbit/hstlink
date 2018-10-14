@@ -18,3 +18,8 @@ fiddleRegs = withAutoBoard $ do
   num <- readReg 0
   writeReg 1 (num + 3)
 ```
+
+## Further Info
+
+All other information can be found in the [Haddock documentation]()
+generated from the source.
