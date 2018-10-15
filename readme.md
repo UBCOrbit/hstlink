@@ -4,7 +4,7 @@ This is a library for interacting with STLink dongles and debugging
 STM32 microcontrollers through haskell scripts!
 
 At UBC Orbit, we're using it to simulate upsets that the satellite
-with encounter in space, and ensuring that they're dealt with
+will encounter in space, and ensuring that they're dealt with
 accordingly.
 
 ## Example
