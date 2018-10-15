@@ -1,5 +1,8 @@
 # HSTLink
 
+[Click here](https://ubcorbit.github.io/hstlink/) for the latest,
+up-to-date documentation!
+
 This is a library for interacting with STLink dongles and debugging
 STM32 microcontrollers through haskell scripts!
 
@@ -21,5 +24,6 @@ fiddleRegs = withAutoBoard $ do
 
 ## Further Info
 
-All other information can be found in the [Haddock documentation]()
-generated from the source.
+All other information can be found in the [Haddock
+documentation](https://ubcorbit.github.io/hstlink/) generated from the
+source.
