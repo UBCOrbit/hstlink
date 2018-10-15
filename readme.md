@@ -1,5 +1,7 @@
 # HSTLink
 
+[![Build Status](https://travis-ci.org/UBCOrbit/hstlink.svg?branch=master)](https://travis-ci.org/UBCOrbit/hstlink)
+
 [Click here](https://ubcorbit.github.io/hstlink/) for the latest,
 up-to-date documentation!
 
