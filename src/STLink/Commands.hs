@@ -37,6 +37,7 @@ import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Bits
 import           Data.Word
+import           Data.Semigroup ((<>))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -317,14 +318,30 @@ data CommandReadMem =
   CommandReadMem Word32 Word16
   deriving (Eq, Show)
 
+-- | For some reason the STLink can't send only 1 byte at a time, and
+-- will instead send a padding byte of 0.  This function corrects a
+-- length to accommodate this.
+correctLength :: (Eq n, Num n) => n -> n
+correctLength 1 = 2
+correctLength x = x
+
+-- | This function corrects a ByteString to accommodate the limitation
+-- described in 'correctLength'.
+correctBS :: BS.ByteString -> BS.ByteString
+correctBS s
+  | BS.length s == 1 = s <> "\0"
+  | otherwise = s
+
 instance InCommand CommandReadMem where
   type InResponse CommandReadMem = BS.ByteString
   inCommandEncoding (CommandReadMem a l) = putDebug $ do
     putWord8 0x0c
     putWord32le a
-    putWord16le l
-  inResponseSize (CommandReadMem _ l) = fromIntegral l
-  inResponseEncoding (CommandReadMem _ l) = getByteString (fromIntegral l)
+    putWord16le (correctLength l)
+  inResponseSize (CommandReadMem _ l) =
+    fromIntegral (correctLength l)
+  inResponseEncoding (CommandReadMem _ l) =
+    getByteString (fromIntegral (correctLength l))
 
 -- | Peeks 'l' bytes of memory at address 'a'.
 --
@@ -341,8 +358,8 @@ instance OutCommand CommandWriteMem where
   outCommandEncoding (CommandWriteMem a l) = putDebug $ do
     putWord8 0x0d
     putWord32le a
-    putWord16le l
-  outDataEncoding = putByteString
+    putWord16le (correctLength l)
+  outDataEncoding = putByteString . correctBS
 
 -- | Writes a 'BS.ByteString' into the location in memory specified by
 -- 'a'.
