@@ -341,7 +341,7 @@ instance InCommand CommandReadMem where
   inResponseSize (CommandReadMem _ l) =
     fromIntegral (correctLength l)
   inResponseEncoding (CommandReadMem _ l) =
-    getByteString (fromIntegral (correctLength l))
+    getByteString (fromIntegral l)
 
 -- | Peeks 'l' bytes of memory at address 'a'.
 --
