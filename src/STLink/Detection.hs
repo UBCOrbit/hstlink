@@ -12,19 +12,20 @@ the user to select one if more than one is found.
 
 module STLink.Detection
   ( pickBoard
-  ) where
+  )
+where
 
 import           System.IO
 import           System.USB
 
 import           Data.Functor
-import qualified Data.Vector            as V
+import qualified Data.Vector                   as V
 import           Data.Word
 
-import qualified Data.Text              as T
+import qualified Data.Text                     as T
 import           Text.PrettyPrint.Boxes
 
-import           Numeric                (showHex)
+import           Numeric                                  ( showHex )
 
 -- | All STLINK boards have this vendor ID.
 stVendorId :: Word16
@@ -43,36 +44,34 @@ toHex x = showHex x ""
 -- a USB device from the operating system, we actually need to query
 -- the device itself to get the string that corresponds to the index.
 getStrUSB :: (DeviceDesc -> Maybe StrIx) -> (Device, DeviceDesc) -> IO T.Text
-getStrUSB f (d, dd) =
-  withDeviceHandle d $ \h ->
-    case f dd of
-      Just i  -> getStrDescFirstLang h i 256
-      Nothing -> pure ""
+getStrUSB f (d, dd) = withDeviceHandle d $ \h -> case f dd of
+  Just i  -> getStrDescFirstLang h i 256
+  Nothing -> pure ""
 
 -- | Pretty-print a table of the available boards we detected.
 printBoards :: [(Device, DeviceDesc)] -> IO ()
 printBoards ds = do
-  names <- traverse (getStrUSB deviceProductStrIx) ds
+  names   <- traverse (getStrUSB deviceProductStrIx) ds
   serials <- traverse (getStrUSB deviceSerialNumberStrIx) ds
   let numbox =
-        vcat right $
-        "num" : (text . (\t -> "[" ++ t ++ "]") . show <$> [1 .. length ds])
+        vcat right
+          $ "num"
+          : (text . (\t -> "[" ++ t ++ "]") . show <$> [1 .. length ds])
       productbox =
         vcat right $ "id" : (text . toHex . deviceProductId . snd <$> ds)
-      namebox = vcat left $ "name" : (text . T.unpack <$> names)
+      namebox   = vcat left $ "name" : (text . T.unpack <$> names)
       serialbox = vcat left $ "serial" : (text . T.unpack <$> serials)
   printBox $ numbox <+> productbox <+> namebox <+> serialbox
 
 -- | Find every ST board connected to the USB controller.
 findStMicros :: IO (V.Vector (Device, DeviceDesc))
-findStMicros
-  -- set up a USB context and get all connected devices
- = do
-  ctx <- newCtx
-  devs <- getDevices ctx
+findStMicros = do
+  ctx   <- newCtx
+  devs  <- getDevices ctx
   -- get a vector of device descriptors, filter out ST ones
   descs <- traverse getDeviceAndDesc devs
   pure $ V.filter ((== stVendorId) . deviceVendorId . snd) descs
+  -- set up a USB context and get all connected devices
 
 -- | Ask the user to select one of the available board, or fail if
 -- none are available.

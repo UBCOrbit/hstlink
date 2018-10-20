@@ -15,10 +15,11 @@ module STLink.Driver
   , withAutoBoard
   , withBoard
   , STLink(STLink)
-  ) where
+  )
+where
 
 import           Control.Monad.Except
-import qualified Data.ByteString      as BS
+import qualified Data.ByteString               as BS
 import           STLink.Detection
 import           System.USB
 
@@ -38,11 +39,9 @@ eguard _ False = pure ()
 --
 -- Since USB is a host-oriented protocol, we have to know in advance
 -- how many bytes to read from the device's buffer.
-inCommand ::
-     DeviceHandle -> BS.ByteString -> Size -> ExceptT String IO BS.ByteString
-inCommand h c s
-  -- send the command and make sure it was sucessful
- = do
+inCommand
+  :: DeviceHandle -> BS.ByteString -> Size -> ExceptT String IO BS.ByteString
+inCommand h c s = do
   (size, sendStatus) <- liftIO $ writeBulk h (EndpointAddress 1 Out) c 1000
   eguard "sent command truncated" $ size /= BS.length c
   eguard "send timed out" $ sendStatus /= Completed
@@ -51,6 +50,7 @@ inCommand h c s
   eguard "response truncated" $ s /= BS.length d
   eguard "receive timed out" $ recStatus /= Completed
   pure d
+  -- send the command and make sure it was sucessful
 
 -- | Low-level command that formats an "outward" command the way the
 -- STLink dongle likes it:
@@ -59,11 +59,9 @@ inCommand h c s
 -- USB_BULK out \<up to 16 bytes of commands\>
 -- USB_BULK out \<outward-bound data\>
 -- @
-outCommand ::
-     DeviceHandle -> BS.ByteString -> BS.ByteString -> ExceptT String IO ()
-outCommand h c d
-  -- send the command and make sure it was sucessful
- = do
+outCommand
+  :: DeviceHandle -> BS.ByteString -> BS.ByteString -> ExceptT String IO ()
+outCommand h c d = do
   (sendSize, sendStatus) <- liftIO $ writeBulk h (EndpointAddress 1 Out) c 1000
   eguard "sent command truncated" $ sendSize /= BS.length c
   eguard "send command timed out" $ sendStatus /= Completed
@@ -71,6 +69,7 @@ outCommand h c d
   (recSize, recStatus) <- liftIO $ writeBulk h (EndpointAddress 1 Out) d 1000
   eguard "sent data truncated" $ recSize /= BS.length d
   void $ eguard "send data timed out" $ recStatus /= Completed
+  -- send the command and make sure it was sucessful
 
 -- | This monad lets you write effectful computations that communicate
 -- with an STLink dongle, without explicitly specifying the dongle you
@@ -104,12 +103,12 @@ withAutoBoard s = pickBoard >>= maybe (pure Nothing) (`withBoard` s)
 -- | Lets the user manually specify a USB 'Device' to execute the
 -- 'STLink' action on.
 withBoard :: Device -> STLink a -> IO (Maybe a)
-withBoard d s =
-  withDeviceHandle d $ \h ->
-    withDetachedKernelDriver h 0 $
-    withClaimedInterface h 0 $
-    runExceptT (runSTLink s h) >>= \case
-      Left e -> do
-        liftIO . putStrLn $ "stlink driver error: " ++ e
-        pure Nothing
-      Right a -> pure $ Just a
+withBoard d s = withDeviceHandle d $ \h ->
+  withDetachedKernelDriver h 0
+    $   withClaimedInterface h 0
+    $   runExceptT (runSTLink s h)
+    >>= \case
+          Left e -> do
+            liftIO . putStrLn $ "stlink driver error: " ++ e
+            pure Nothing
+          Right a -> pure $ Just a

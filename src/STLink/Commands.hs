@@ -31,15 +31,16 @@ module STLink.Commands
   , writeReg
   , readMem
   , writeMem
-  ) where
+  )
+where
 
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Bits
 import           Data.Word
-import           Data.Semigroup ((<>))
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
+import           Data.Semigroup                           ( (<>) )
+import qualified Data.ByteString               as BS
+import qualified Data.ByteString.Lazy          as BL
 
 import           Control.Applicative
 
@@ -48,9 +49,9 @@ import           STLink.Driver
 -- | Returns the smallests number with 'n' high bits.
 bitsOn :: (Num a, Bits a) => Int -> a
 bitsOn n = f n 0
-  where
-    f 0 m = shiftR m 1
-    f l m = f (l - 1) (shift (m .|. 1) 1)
+ where
+  f 0 m = shiftR m 1
+  f l m = f (l - 1) (shift (m .|. 1) 1)
 
 -- | Selects a bitfield at bits position 'p' (couting from the LSB)
 -- that is 'w' bits wide.
@@ -294,7 +295,7 @@ instance InCommand CommandReadReg where
     putDebug $ putWord8 0x33 *> putWord8 n
   inResponseSize _ = 8
   inResponseEncoding _ = getWord32le *> getWord32le
-  
+
 -- | Read the specified real register. (Debug registers are not
 -- accessible through this command).
 readReg :: Reg -> STLink Word32
@@ -328,9 +329,8 @@ correctLength x = x
 -- | This function corrects a ByteString to accommodate the limitation
 -- described in 'correctLength'.
 correctBS :: BS.ByteString -> BS.ByteString
-correctBS s
-  | BS.length s == 1 = s <> "\0"
-  | otherwise = s
+correctBS s | BS.length s == 1 = s <> "\0"
+            | otherwise        = s
 
 instance InCommand CommandReadMem where
   type InResponse CommandReadMem = BS.ByteString
@@ -366,5 +366,4 @@ instance OutCommand CommandWriteMem where
 --
 -- A maximum of 64 bytes can be written in one command.
 writeMem :: Word32 -> BS.ByteString -> STLink ()
-writeMem a d = runOutCommand
-  (CommandWriteMem a (fromIntegral $ BS.length d)) d
+writeMem a d = runOutCommand (CommandWriteMem a (fromIntegral $ BS.length d)) d

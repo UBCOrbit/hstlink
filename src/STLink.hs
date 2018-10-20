@@ -36,7 +36,11 @@ one.  We can use this to run our @myAction@ 'STLink' action:
 module STLink
   ( module STLink.Driver
   , module STLink.Commands
-  ) where
+  )
+where
 
 import           STLink.Commands
-import           STLink.Driver   (withAutoBoard, withBoard, STLink)
+import           STLink.Driver                            ( withAutoBoard
+                                                          , withBoard
+                                                          , STLink
+                                                          )
