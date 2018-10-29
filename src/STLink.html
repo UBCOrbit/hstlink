@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{-|
+Module      : STLink
+Description : Module that re-exports all user-facing functions
+Copyright   : (c) UBC Orbit
+Maintainer  : sam.schweigel@ubcorbit.com
+
+This is the module users should import when writing applications.
+
+= Short Tutorial
+
+Interacting with an STLink board is really easy!  All STLink-board
+related actions run inside the 'STLink' monad.  For example, we can
+read @r0@, and then write its value + 3 back into @r1@.
+@0x1234@:
+
+&gt; myAction :: STLink ()
+&gt; myAction = do
+&gt;   enterMode DebugSWD -- must be in debug mode to peek/poke registers
+&gt;   num &lt;- readReg 0
+&gt;   writeReg 1 (num + 3)
+
+'STLink' actions are board-agnostic, so in order to run them you have
+to use the 'withBoard' function, that will automatically connect and
+disconnect to the board.  It takes any STLink action, as well as a USB
+'Device', and runs that action on that device.
+
+In order to make things simpler, a helper function 'withAutoBoard' is
+provided, that will scan for attached STLink dongles, and
+automatically run the given action if one is available.  If more than
+one is connected, a menu will prompt the user to select the desired
+one.  We can use this to run our @myAction@ 'STLink' action:
+
+&gt; main :: IO ()
+&gt; main = withAutoBoard myAction
+-}</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">STLink</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">STLink</span><span class="hs-operator">.</span><span class="hs-identifier">Driver</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">STLink</span><span class="hs-operator">.</span><span class="hs-identifier">Commands</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">where</span><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span>           </span><a href="STLink.Commands.html"><span class="hs-identifier">STLink</span><span class="hs-operator">.</span><span class="hs-identifier">Commands</span></a><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span>           </span><a href="STLink.Driver.html"><span class="hs-identifier">STLink</span><span class="hs-operator">.</span><span class="hs-identifier">Driver</span></a><span>                            </span><span class="hs-special">(</span><span> </span><a href="STLink.Driver.html#withAutoBoard"><span class="hs-identifier hs-var">withAutoBoard</span></a><span>
+</span><a name="line-44"></a><span>                                                          </span><span class="hs-special">,</span><span> </span><a href="STLink.Driver.html#withBoard"><span class="hs-identifier hs-var">withBoard</span></a><span>
+</span><a name="line-45"></a><span>                                                          </span><span class="hs-special">,</span><span> </span><a href="STLink.Driver.html#STLink"><span class="hs-identifier hs-type">STLink</span></a><span>
+</span><a name="line-46"></a><span>                                                          </span><span class="hs-special">)</span><span>
+</span><a name="line-47"></a></pre></body></html>
