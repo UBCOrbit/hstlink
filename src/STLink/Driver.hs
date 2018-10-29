@@ -104,8 +104,7 @@ withAutoBoard s = pickBoard >>= maybe (pure Nothing) (`withBoard` s)
 -- 'STLink' action on.
 withBoard :: Device -> STLink a -> IO (Maybe a)
 withBoard d s = withDeviceHandle d $ \h ->
-  withDetachedKernelDriver h 0
-    $   withClaimedInterface h 0
+    withClaimedInterface h 0
     $   runExceptT (runSTLink s h)
     >>= \case
           Left e -> do
